@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>منصتي التعليمية</title>
+<title>منصتي التعليمية الشاملة</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -16,16 +16,16 @@
 }
 body.light{ --bg:#f4f6fb; --card:#ffffff; --text:#1c1f2a; --muted:#6b7280; }
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,sans-serif;-webkit-tap-highlight-color:transparent}
-body{background:var(--bg);color:var(--text);min-height:100vh;transition:.3s;user-select:none;-webkit-user-select:none}
+body{background:var(--bg);color:var(--text);min-height:100vh;transition:.3s;user-select:none;-webkit-user-select:none;position:relative;overflow-x:hidden}
 button{cursor:pointer;border:none;font-family:inherit}
 input,select,textarea{width:100%;padding:13px;border-radius:12px;border:2px solid transparent;background:#00000022;color:var(--text);margin-bottom:10px;font-size:15px;outline:none}
 body.light input,body.light select,body.light textarea{background:#f1f3f8}
 input:focus,textarea:focus{border-color:var(--primary)}
 label{font-size:13px;color:var(--muted);display:block;margin-bottom:3px}
 
-/* حماية الشاشة والنسخ */
+/* حماية الشاشة والنسخ والعلامة المائية المتحركة */
 body.protected-blur #app, body.protected-blur #authScreen{filter:blur(25px)}
-#watermark{position:fixed;inset:0;pointer-events:none;z-index:1;overflow:hidden;opacity:.05;font-size:13px;line-height:3;word-break:break-all;padding:10px;transform:rotate(-15deg)}
+#watermark{position:fixed;pointer-events:none;z-index:999;opacity:.15;font-size:14px;font-weight:bold;color:var(--primary2);white-space:nowrap;transition:all 2s ease-in-out}
 
 #authScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;position:relative;z-index:2}
 .auth-box{width:100%;max-width:420px;background:var(--card);padding:30px 24px;border-radius:24px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
@@ -90,6 +90,11 @@ nav button span{font-size:20px}
 .modal{background:var(--card);border-radius:20px;padding:24px;width:100%;max-width:420px}
 footer{text-align:center;padding:20px;font-size:12px;color:var(--muted);letter-spacing:.5px}
 footer b{color:var(--text)}
+.video-container{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin-top:10px}
+.video-container iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.stat-box{background:#00000022;padding:14px;border-radius:14px;text-align:center}
+.stat-box h4{font-size:22px;color:var(--primary2)}
 @media(min-width:768px){ .course-list{display:grid;grid-template-columns:1fr 1fr;gap:12px} #app{max-width:900px} }
 </style>
 </head>
@@ -111,13 +116,19 @@ footer b{color:var(--text)}
   </div>
 </div>
 
-<!-- نافذة الاسم الثلاثي -->
+<!-- نافذة الاسم الثلاثي واختيار المجموعة -->
 <div class="modal-overlay" id="nameModal" style="display:none">
   <div class="modal">
     <h3 style="margin-bottom:6px">أهلاً بك! 👋</h3>
-    <p class="muted" style="margin-bottom:14px">اكتب اسمك الثلاثي (مثال: أحمد محمد علي)</p>
+    <p class="muted" style="margin-bottom:14px">اكتب اسمك الثلاثي واختر مجموعتك الدراسية</p>
     <input id="fullNameInput" placeholder="الاسم بالكامل (3 أسماء على الأقل)">
-    <button class="btn" onclick="saveStudentName()">متابعة</button>
+    <select id="groupSelectInput">
+      <option value="عام">المجموعة العامة</option>
+      <option value="مجموعة 1">مجموعة السبت والأربعاء</option>
+      <option value="مجموعة 2">مجموعة الأحد والثلاثاء</option>
+      <option value="أونلاين">مجموعة أونلاين فقط</option>
+    </select>
+    <button class="btn" onclick="saveStudentInfo()">متابعة</button>
   </div>
 </div>
 
@@ -128,7 +139,6 @@ footer b{color:var(--text)}
     <div class="header-actions">
       <button class="icon-btn" id="devBtn" style="display:none" onclick="showPage('dev')">🛠️</button>
       <button class="icon-btn" onclick="toggleTheme()">🌙</button>
-      <!-- تم حذف زر الخروج لمنع لعب الطلاب -->
     </div>
   </header>
   <main id="mainContent"></main>
@@ -157,9 +167,9 @@ const firebaseConfig = {
   appId: "1:437463842510:web:428ebd6b656dfd40911a9f"
 };
 firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth(), db = firebase.database(), storage = firebase.storage();
+const auth = firebase.auth(), db = firebase.database();
 
-/* الحماية من النسخ والتسجيل */
+/* الحماية من النسخ والتسجيل وتقييد الجهاز والعلامة المائية المتحركة */
 document.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('copy', e => { e.preventDefault(); toast('🔒 النسخ غير مسموح'); });
 document.addEventListener('visibilitychange', () => {
@@ -167,18 +177,20 @@ document.addEventListener('visibilitychange', () => {
 });
 
 let currentUser = null;
+let currentUserData = {};
 let teachers = {};
 let page = 'home';
 let activeListeners = [];
 let activeChatUser = null;
-let welcomeClickCount = 0; // عداد الضغطات المباشرة لفتح وضع المطور
+let welcomeClickCount = 0;
 let welcomeClickTimer = null;
+let deviceSessionId = Math.random().toString(36).substring(2);
 
 const san = email => (email||'').replace(/\./g, ',').replace(/[#$\[\]]/g,'');
 const isDev = () => localStorage.getItem('dev_mode') === '1';
 const devView = () => localStorage.getItem('dev_view');
 const isTeacher = () => (teachers[san(currentUser?.email)] || currentUser?.email === DEV_EMAIL) ? true : (devView()==='teacher' && isDev());
-const myName = () => currentUser?.displayName || 'مستخدم';
+const myName = () => currentUserData.name || currentUser?.displayName || 'مستخدم';
 const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
 function formatMessage(text) {
@@ -186,6 +198,18 @@ function formatMessage(text) {
   return esc(text).replace(urlRegex, function(url) {
     return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
   });
+}
+
+function startDynamicWatermark() {
+  const wm = document.getElementById('watermark');
+  wm.style.display = 'block';
+  wm.textContent = `${myName()} • ${currentUser.email}`;
+  setInterval(() => {
+    const top = Math.floor(Math.random() * 80) + 10;
+    const left = Math.floor(Math.random() * 60) + 5;
+    wm.style.top = top + '%';
+    wm.style.left = left + '%';
+  }, 4000);
 }
 
 function toast(msg){
@@ -221,22 +245,38 @@ auth.onAuthStateChanged(async user=>{
     document.getElementById('nameModal').style.display='flex';
     return;
   }
-  if(!uSnap.exists()){
-    await db.ref('users/'+user.uid).set({ name: myName(), email: user.email, createdAt: firebase.database.ServerValue.TIMESTAMP });
+  
+  if(uSnap.exists()) {
+    currentUserData = uSnap.val();
+  } else {
+    currentUserData = { name: myName(), email: user.email, group: 'عام' };
+    await db.ref('users/'+user.uid).set({ ...currentUserData, createdAt: firebase.database.ServerValue.TIMESTAMP });
   }
+
+  /* تقييد الحساب بجهاز واحد نشط */
+  db.ref('sessions/' + user.uid).set(deviceSessionId);
+  db.ref('sessions/' + user.uid).on('value', snap => {
+    if(snap.val() && snap.val() !== deviceSessionId) {
+      alert('⚠️ تم فتح هذا الحساب من جهاز آخر! سيتم تسجيل الخروج لحماية حسابك.');
+      location.reload();
+    }
+  });
+
   enterApp();
 });
 
-async function saveStudentName(){
+async function saveStudentInfo(){
   const name = document.getElementById('fullNameInput').value.trim().replace(/\s+/g,' ');
+  const group = document.getElementById('groupSelectInput').value;
   const parts = name.split(' ').filter(Boolean);
   if(parts.length < 3){ toast('⚠️ اكتب اسمك الثلاثي (3 أسماء على الأقل)'); return; }
-  await db.ref('users/'+currentUser.uid).set({ name, email: currentUser.email, createdAt: firebase.database.ServerValue.TIMESTAMP });
+  currentUserData = { name, email: currentUser.email, group };
+  await db.ref('users/'+currentUser.uid).set({ ...currentUserData, createdAt: firebase.database.ServerValue.TIMESTAMP });
   document.getElementById('nameModal').style.display='none';
   enterApp();
 }
 
-/* حركة 10 ضغطات متتالية لفتح لوحة المطور */
+/* فتح المطور بـ 10 ضغطات متتالية */
 function handleWelcomeClick(){
   welcomeClickCount++;
   clearTimeout(welcomeClickTimer);
@@ -259,23 +299,19 @@ function devPrompt(){
     toast('🛠️ تم تفعيل وضع المطور');
     document.getElementById('devBtn').style.display = 'block';
     showPage('dev');
-  } else if(pin !== null){ 
-    toast('❌ كود خطأ'); 
-  }
+  } else if(pin !== null){ toast('❌ كود خطأ'); }
 }
 
 function enterApp(){
   document.getElementById('authScreen').style.display='none';
   document.getElementById('app').style.display='block';
   document.getElementById('devBtn').style.display = isDev() ? 'block' : 'none';
-  const wm = document.getElementById('watermark');
-  wm.style.display='block';
-  wm.textContent = (currentUser.email + ' • ').repeat(60);
+  startDynamicWatermark();
   buildNav();
   showPage('home');
 }
 
-const titles = { home:'الرئيسية', courses:'الكورسات', manage:'إدارة المحتوى', posts:'المنشورات', quiz:'اختبر نفسك', chat:'الرسائل', profile:'حسابي', dev:'لوحة المطور' };
+const titles = { home:'الرئيسية', courses:'الكورسات والدروس', manage:'إدارة المحتوى', quiz:'الاختبارات', posts:'المنشورات', chat:'الرسائل', profile:'حسابي', dev:'لوحة المطور' };
 function showPage(p){
   page = p;
   activeChatUser = null;
@@ -288,8 +324,8 @@ function showPage(p){
 
 function buildNav(){
   const items = isTeacher()
-    ? [['home','🏠','الرئيسية'],['manage','📚','إدارتي'],['posts','📰','منشورات'],['chat','💬','الرسائل'],['profile','👤','حسابي']]
-    : [['home','🏠','الرئيسية'],['courses','📚','الكورسات'],['quiz','📝','اختبر نفسك'],['posts','📰','منشورات'],['chat','💬','الرسائل'],['profile','👤','حسابي']];
+    ? [['home','🏠','الرئيسية'],['manage','📚','إدارتي'],['quiz','📝','الاختبارات'],['posts','📰','منشورات'],['chat','💬','الرسائل'],['profile','👤','حسابي']]
+    : [['home','🏠','الرئيسية'],['courses','📚','الكورسات'],['quiz','📝','الاختبارات'],['posts','📰','منشورات'],['chat','💬','الرسائل'],['profile','👤','حسابي']];
   if(isDev()) items.push(['dev','🛠️','المطور']);
   document.getElementById('mainNav').innerHTML = items.map(([p,ic,lb])=>
     `<button data-page="${p}" onclick="showPage('${p}')"><span>${ic}</span>${lb}</button>`).join('');
@@ -303,7 +339,7 @@ async function render(){
   const c = document.getElementById('mainContent');
   if(page==='home') return renderHome(c);
   if(page==='courses' || page==='manage') return isTeacher() ? renderManage(c) : renderCourses(c);
-  if(page==='quiz') return renderQuizHome(c);
+  if(page==='quiz') return renderQuiz(c);
   if(page==='posts') return renderPosts(c);
   if(page==='chat') return renderChat(c);
   if(page==='profile') return renderProfile(c);
@@ -313,6 +349,9 @@ async function render(){
 async function renderHome(c){
   const coursesSnap = await db.ref('courses').once('value');
   const courses = Object.entries(coursesSnap.val()||{}).map(([id,v])=>({id,...v}));
+  
+  const usersSnap = await db.ref('users').once('value');
+  const totalStudents = Object.keys(usersSnap.val()||{}).length;
 
   listen(db.ref('live'), snap => {
     const liveData = snap.val();
@@ -342,7 +381,12 @@ async function renderHome(c){
       <h3 style="color:#fff">${isTeacher()?'👨‍🏫 أستاذ ':'🎒 '} ${esc(myName())}</h3>
       <p style="opacity:.9;font-size:14px">${isTeacher()?'منصتك جاهزة لإدارة المحتوى والدروس والبث':'استمر يا بطل، كل خطوة تقربك لهدفك 🔥'}</p>
     </div>
+
     ${isTeacher()?`
+      <div class="stats-grid">
+        <div class="stat-box"><h4>${totalStudents}</h4><p class="muted">الطلاب المسجلين</p></div>
+        <div class="stat-box"><h4>${courses.length}</h4><p class="muted">الكورسات المتاحة</p></div>
+      </div>
       <div class="card">
         <h3>📡 إنشاء بث مباشر جديد</h3>
         <input id="liveTitle" placeholder="عنوان البث (مثال: مراجعة ليلة الامتحان)">
@@ -354,6 +398,7 @@ async function renderHome(c){
         <button class="btn" style="background:var(--accent);color:#000" onclick="showPage('posts')">نشر منشور</button>
       </div>
     `:''}
+
     <div class="section-title"><h3>الكورسات المتاحة</h3></div>
     <div class="course-list">
       ${courses.length ? courses.map(x=>`
@@ -374,12 +419,7 @@ async function startLive(){
   const url = document.getElementById('liveUrl').value.trim();
   if(!title || !url) return toast('⚠️ ادخل عنوان ورابط البث');
   
-  await db.ref('live').set({
-    active: true,
-    title: title,
-    url: url,
-    time: firebase.database.ServerValue.TIMESTAMP
-  });
+  await db.ref('live').set({ active: true, title, url, time: firebase.database.ServerValue.TIMESTAMP });
   toast('📡 تم إطلاق البث المباشر بنجاح!');
 }
 
@@ -388,17 +428,27 @@ async function endLive(){
   toast('🛑 تم إنهاء البث');
 }
 
+/* ================= الكورسات والدروس بالفيديو ================= */
 async function renderCourses(c){
   const snap = await db.ref('courses').once('value');
   const courses = Object.entries(snap.val()||{}).map(([id,v])=>({id,...v}));
-  c.innerHTML = `<div class="section-title"><h3>جميع الكورسات</h3></div>` +
+  
+  c.innerHTML = `<div class="section-title"><h3>جميع الكورسات والدروس المتاحة</h3></div>` +
     (courses.length ? courses.map(x=>`
-      <div class="course">
-        <div class="emoji">${x.emoji||'📚'}</div>
-        <div class="course-info">
-          <h3>${esc(x.title)}</h3>
-          <p class="muted">${esc(x.desc||'')}</p>
+      <div class="card">
+        <div class="course" style="padding:0;background:transparent;margin-bottom:10px">
+          <div class="emoji">${x.emoji||'📚'}</div>
+          <div class="course-info">
+            <h3>${esc(x.title)}</h3>
+            <p class="muted">${esc(x.desc||'')}</p>
+          </div>
         </div>
+        ${x.videoUrl ? `
+          <div class="video-container">
+            <iframe src="${esc(x.videoUrl)}" allowfullscreen></iframe>
+          </div>
+        ` : ''}
+        ${x.pdf ? `<a href="${esc(x.pdf)}" target="_blank" class="btn small secondary" style="margin-top:10px;text-decoration:none">📂 فتح الملزمة / PDF</a>` : ''}
       </div>
     `).join('') : emptyBox('📚','لا توجد كورسات حالياً'));
 }
@@ -406,11 +456,18 @@ async function renderCourses(c){
 async function renderManage(c){
   c.innerHTML = `
     <div class="card">
-      <h3>إضافة كورس جديد</h3>
-      <input id="newCourseTitle" placeholder="عنوان الكورس">
+      <h3>إضافة كورس أو درس جديد</h3>
+      <input id="newCourseTitle" placeholder="عنوان الكورس أو الدرس">
       <input id="newCourseEmoji" placeholder="أيقونة أو إيموجي (مثل 📐)">
-      <textarea id="newCourseDesc" placeholder="وصف قصير للكورس"></textarea>
-      <button class="btn" onclick="addCourse()">إضافة الكورس</button>
+      <textarea id="newCourseDesc" placeholder="وصف الكورس والباب الدراسية"></textarea>
+      <input id="newCourseVideo" placeholder="رابط فيديو الشرح (Embed Video Link)">
+      <input id="newCoursePdf" placeholder="رابط ملزمة الشرح PDF (اختياري)">
+      <button class="btn" onclick="addCourse()">إضافة الدرس للمنصة</button>
+    </div>
+    <div class="card">
+      <h3>🎟️ إنشاء كود تفعيل (Promo Code)</h3>
+      <input id="promoCodeInput" placeholder="اكتب كود التفعيل (مثل MATH2026)">
+      <button class="btn success" onclick="createPromoCode()">حفظ وتفعيل الكود</button>
     </div>
   `;
 }
@@ -419,24 +476,99 @@ async function addCourse(){
   const title = document.getElementById('newCourseTitle').value.trim();
   const emoji = document.getElementById('newCourseEmoji').value.trim() || '📚';
   const desc = document.getElementById('newCourseDesc').value.trim();
+  let videoUrl = document.getElementById('newCourseVideo').value.trim();
+  const pdf = document.getElementById('newCoursePdf').value.trim();
+
+  if(videoUrl.includes('youtube.com/watch?v=')){
+    videoUrl = videoUrl.replace('watch?v=', 'embed/');
+  }
+
   if(!title) return toast('⚠️ اكتب عنوان الكورس');
-  await db.ref('courses').push({ title, emoji, desc, owner: currentUser.uid });
-  toast('✅ تم إضافة الكورس بنجاح');
+  await db.ref('courses').push({ title, emoji, desc, videoUrl, pdf, owner: currentUser.uid });
+  toast('✅ تم إضافة الكورس والدرس بنجاح');
   showPage('manage');
 }
 
-async function renderQuizHome(c){
-  c.innerHTML = emptyBox('📝','لا توجد اختبارات متاحة حالياً');
+async function createPromoCode(){
+  const code = document.getElementById('promoCodeInput').value.trim().toUpperCase();
+  if(!code) return toast('⚠️ اكتب الكود أولاً');
+  await db.ref('promos/' + code).set({ active: true, createdBy: currentUser.email });
+  toast('✅ تم إنشاء كود التفعيل بنجاح');
+  document.getElementById('promoCodeInput').value = '';
 }
 
+/* ================= بنك الأسئلة والاختبارات ================= */
+async function renderQuiz(c){
+  if(isTeacher()){
+    c.innerHTML = `
+      <div class="card">
+        <h3>📝 إنشاء اختبار جديد لبنك الأسئلة</h3>
+        <input id="qTitle" placeholder="عنوان الاختبار (مثال: امتحان الباب الأول)">
+        <input id="qQuestion" placeholder="نص السؤال">
+        <input id="qOpt1" placeholder="الاختيار الأول">
+        <input id="qOpt2" placeholder="الاختيار الثاني">
+        <input id="qOpt3" placeholder="الاختيار الثالث">
+        <input id="qCorrect" placeholder="رقم الاختيار الصحيح (1 أو 2 أو 3)">
+        <button class="btn" onclick="saveQuiz()">نشر الاختبار للطالب</button>
+      </div>
+    `;
+  } else {
+    const snap = await db.ref('quizzes').once('value');
+    const quizzes = Object.entries(snap.val()||{}).map(([id,v])=>({id,...v}));
+    c.innerHTML = `
+      <div class="section-title"><h3>📝 الاختبارات وبنك الأسئلة</h3></div>
+      <div id="quizContainer">
+        ${quizzes.length ? quizzes.map(q=>`
+          <div class="card">
+            <h3>${esc(q.title)}</h3>
+            <p><b>س: ${esc(q.question)}</b></p>
+            <div style="margin:10px 0">
+              <label><input type="radio" name="q_${q.id}" value="1"> ${esc(q.opt1)}</label>
+              <label><input type="radio" name="q_${q.id}" value="2"> ${esc(q.opt2)}</label>
+              <label><input type="radio" name="q_${q.id}" value="3"> ${esc(q.opt3)}</label>
+            </div>
+            <button class="btn small" onclick="submitQuiz('${q.id}', '${q.correct}')">تسليم الإجابة</button>
+          </div>
+        `).join('') : emptyBox('📝','لا توجد اختبارات متاحة حالياً')}
+      </div>
+    `;
+  }
+}
+
+async function saveQuiz(){
+  const title = document.getElementById('qTitle').value.trim();
+  const question = document.getElementById('qQuestion').value.trim();
+  const opt1 = document.getElementById('qOpt1').value.trim();
+  const opt2 = document.getElementById('qOpt2').value.trim();
+  const opt3 = document.getElementById('qOpt3').value.trim();
+  const correct = document.getElementById('qCorrect').value.trim();
+
+  if(!title || !question || !correct) return toast('⚠️ املأ الحقول الأساسية');
+  await db.ref('quizzes').push({ title, question, opt1, opt2, opt3, correct });
+  toast('✅ تم نشر الاختبار بنجاح');
+  showPage('quiz');
+}
+
+async function submitQuiz(quizId, correctAns){
+  const selected = document.querySelector(`input[name="q_${quizId}"]:checked`);
+  if(!selected) return toast('⚠️ اختر إجابة أولاً');
+  if(selected.value === correctAns){
+    toast('🎉 إجابة صحيحة! أحسنت');
+    await db.ref('results/' + currentUser.uid + '/' + quizId).set({ passed: true, time: firebase.database.ServerValue.TIMESTAMP });
+  } else {
+    toast('❌ إجابة خاطئة، حاول مجدداً');
+  }
+}
+
+/* ================= المنشورات ================= */
 async function renderPosts(c){
   c.innerHTML = `
     ${isTeacher()?`
       <div class="card">
         <h3>نشر منشور جديد</h3>
-        <textarea id="postContent" placeholder="اكتب شيئاً لطلابك... يمكنك إرفاق رابط مفيد"></textarea>
+        <textarea id="postContent" placeholder="اكتب تذكير أو إعلان لطلابك..."></textarea>
         <input id="postImgUrl" placeholder="رابط صورة للمنشور (اختياري)">
-        <button class="btn small" onclick="createPost()">نشر</button>
+        <button class="btn small" onclick="createPost()">نشر المنشور</button>
       </div>
     `:''}
     <div id="postsList"></div>
@@ -468,6 +600,7 @@ async function createPost(){
   toast('✅ تم النشر');
 }
 
+/* ================= الشات الفوري والرسائل ================= */
 async function renderChat(c){
   if(!isTeacher()){
     c.innerHTML = `
@@ -498,7 +631,7 @@ async function renderChat(c){
           ${users.length ? users.map(u => `
             <div class="chat-user" onclick="openTeacherChat('${u.id}', '${esc(u.name)}')">
               <div class="avatar">🎒</div>
-              <div><b>${esc(u.name)}</b><div class="muted">${esc(u.email)}</div></div>
+              <div><b>${esc(u.name)}</b> <span class="chip student">${esc(u.group||'عام')}</span><div class="muted">${esc(u.email)}</div></div>
             </div>
           `).join('') : emptyBox('💬','لا توجد محادثات طلاب بعد')}
         </div>
@@ -556,9 +689,7 @@ async function sendMsg(imgUrl = null){
 
 function promptImage(){
   const imgUrl = prompt('🖼️ ضع رابط الصورة المراد إرسالها:');
-  if(imgUrl && imgUrl.trim()){
-    sendMsg(imgUrl.trim());
-  }
+  if(imgUrl && imgUrl.trim()) sendMsg(imgUrl.trim());
 }
 
 async function renderProfile(c){
@@ -567,11 +698,28 @@ async function renderProfile(c){
       <div class="avatar" style="width:80px;height:80px;margin:0 auto 12px;font-size:32px">👤</div>
       <h3>${esc(myName())}</h3>
       <p class="muted">${esc(currentUser.email)}</p>
-      <div style="margin-top:14px">
-        <span class="chip ${isTeacher()?'teacher':'student'}">${isTeacher()?'معلم / أستاذ':'طالب'}</span>
+      <div style="margin:14px 0">
+        <span class="chip ${isTeacher()?'teacher':'student'}">${isTeacher()?'معلم / أستاذ':'طالب ('+(currentUserData.group||'عام')+')'}</span>
       </div>
+      ${!isTeacher() ? `
+        <div style="margin-top:20px">
+          <input id="userPromo" placeholder="أدخل كود تفعيل الكورس">
+          <button class="btn small" onclick="redeemPromo()">تفعيل الكود الآن</button>
+        </div>
+      ` : ''}
     </div>
   `;
+}
+
+async function redeemPromo(){
+  const code = document.getElementById('userPromo').value.trim().toUpperCase();
+  if(!code) return toast('⚠️ أدخل الكود');
+  const snap = await db.ref('promos/' + code).once('value');
+  if(snap.exists()){
+    toast('🎉 تم تفعيل الكود والاشتراك بنجاح!');
+  } else {
+    toast('❌ الكود غير صحيح أو منتهي الصلاحية');
+  }
 }
 
 async function renderDev(c){
