@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>منصتي التعليمية</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<style>
+:root{
+  --bg:#0f1117; --card:#1a1d27; --text:#eef1f6; --muted:#8b92a7;
+  --primary:#6c5ce7; --primary2:#a29bfe; --accent:#00cec9;
+  --danger:#ff7675; --success:#55efc4; --radius:16px;
+}
+body.light{ --bg:#f4f6fb; --card:#ffffff; --text:#1c1f2a; --muted:#6b7280; }
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,sans-serif;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);min-height:100vh;transition:.3s;user-select:none;-webkit-user-select:none}
+button{cursor:pointer;border:none;font-family:inherit}
+input,select,textarea{width:100%;padding:13px;border-radius:12px;border:2px solid transparent;background:#00000022;color:var(--text);margin-bottom:10px;font-size:15px;outline:none}
+body.light input,body.light select,body.light textarea{background:#f1f3f8}
+input:focus,textarea:focus{border-color:var(--primary)}
+label{font-size:13px;color:var(--muted);display:block;margin-bottom:3px}
+
+/* حماية: تمويه عند تسجيل الشاشة/تقليب التطبيق */
+body.protected-blur #app, body.protected-blur #authScreen{filter:blur(25px)}
+
+/* واتر مارك باسم المستخدم */
+#watermark{position:fixed;inset:0;pointer-events:none;z-index:1;overflow:hidden;opacity:.05;font-size:13px;line-height:3;word-break:break-all;padding:10px;transform:rotate(-15deg)}
+
+#authScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;position:relative;z-index:2}
+.auth-box{width:100%;max-width:420px;background:var(--card);padding:30px 24px;border-radius:24px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.logo{text-align:center;font-size:40px;margin-bottom:6px}
+.auth-box h1{text-align:center;font-size:22px;margin-bottom:6px}
+.btn{width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;font-size:16px;font-weight:bold;transition:.2s}
+.btn:active{transform:scale(.97)}
+.btn.google{background:#fff;color:#333;display:flex;align-items:center;justify-content:center;gap:10px}
+.btn.secondary{background:var(--card);color:var(--text);border:1px solid var(--muted)}
+.btn.danger{background:var(--danger);color:#fff;width:auto;padding:8px 14px;font-size:13px}
+.btn.small{width:auto;padding:8px 16px;font-size:13px}
+.btn.success{background:var(--success);color:#000;width:auto;padding:8px 14px;font-size:13px}
+.btn.live{background:#e74c3c;color:#fff;width:auto;padding:10px 18px}
+
+#app{display:none;max-width:640px;margin:0 auto;min-height:100vh;padding-bottom:110px;position:relative;z-index:2}
+header{position:sticky;top:0;background:var(--bg);z-index:10;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;backdrop-filter:blur(10px)}
+header h2{font-size:17px}
+.header-actions{display:flex;gap:8px}
+.icon-btn{background:var(--card);color:var(--text);width:42px;height:42px;border-radius:12px;font-size:17px;position:relative}
+main{padding:16px}
+.card{background:var(--card);border-radius:var(--radius);padding:18px;margin-bottom:16px}
+.card h3{font-size:17px;margin-bottom:10px}
+.muted{color:var(--muted);font-size:13px}
+.divider{height:1px;background:#00000020;margin:12px 0}
+
+.course{display:flex;gap:14px;align-items:center;padding:14px;background:var(--card);border-radius:var(--radius);margin-bottom:12px;cursor:pointer}
+.course .emoji{font-size:28px;background:#00000020;width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+body.light .course .emoji{background:#f1f3f8}
+.course-info{flex:1}
+.progress-bar{height:8px;background:#00000030;border-radius:10px;margin-top:8px;overflow:hidden}
+body.light .progress-bar{background:#e5e8f0}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--primary));border-radius:10px;transition:width .5s}
+
+.lesson{padding:13px;background:var(--card);border-radius:14px;margin-bottom:10px}
+.lesson-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.done-badge{color:var(--success);font-size:13px;flex-shrink:0}
+video{width:100%;border-radius:12px;margin-top:10px;background:#000}
+
+.quiz-option{display:block;width:100%;text-align:right;padding:13px;margin-bottom:10px;border-radius:12px;background:#00000020;color:var(--text);font-size:15px;border:2px solid transparent}
+body.light .quiz-option{background:#f1f3f8}
+.quiz-option.correct{border-color:var(--success);background:rgba(85,239,196,.15)}
+.quiz-option.wrong{border-color:var(--danger);background:rgba(255,118,117,.15)}
+
+.post{padding:16px;background:var(--card);border-radius:var(--radius);margin-bottom:14px}
+.post-head{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+.avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+.post-actions{display:flex;gap:6px;margin-top:12px;border-top:1px solid #00000015;padding-top:10px}
+.post-actions button{flex:1;background:transparent;color:var(--muted);padding:8px;border-radius:10px;font-size:14px;font-weight:bold}
+.post-actions button.liked{color:var(--danger)}
+.comment{padding:8px 12px;background:#00000015;border-radius:10px;margin-top:8px;font-size:14px}
+body.light .comment{background:#f1f3f8}
+
+.chat-msg{max-width:75%;padding:10px 14px;border-radius:16px;margin-bottom:8px;font-size:14px;clear:both}
+.chat-msg.me{background:var(--primary);color:#fff;margin-right:auto;border-bottom-left-radius:4px}
+.chat-msg.them{background:var(--card);margin-left:auto;border-bottom-right-radius:4px}
+.chat-box{position:fixed;bottom:0;right:0;left:0;max-width:640px;margin:0 auto;background:var(--bg);padding:12px 16px;display:flex;gap:8px;z-index:30}
+.chat-box input{margin:0}
+.chat-scroll{max-height:55vh;overflow-y:auto;padding-bottom:10px}
+.chat-user{display:flex;gap:12px;align-items:center;padding:13px;background:var(--card);border-radius:14px;margin-bottom:10px;cursor:pointer}
+.unread{position:absolute;top:-2px;left:-2px;background:var(--danger);color:#fff;font-size:10px;min-width:18px;height:18px;border-radius:10px;display:flex;align-items:center;justify-content:center}
+
+nav{position:fixed;bottom:0;right:0;left:0;background:var(--card);display:flex;justify-content:space-around;padding:8px 0;box-shadow:0 -5px 20px rgba(0,0,0,.15);z-index:20}
+nav button{background:transparent;color:var(--muted);font-size:10px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 8px}
+nav button.active{color:var(--primary)}
+nav button span{font-size:20px}
+
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px}
+.stat{background:var(--card);border-radius:14px;padding:14px;text-align:center}
+.stat .num{font-size:21px;font-weight:bold;color:var(--primary)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 0;border-bottom:1px solid #00000015}
+.row:last-child{border:none}
+.chip{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:bold}
+.chip.teacher{background:rgba(108,92,231,.2);color:var(--primary2)}
+.chip.student{background:rgba(0,206,201,.15);color:var(--accent)}
+.live-badge{background:#e74c3c;color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:bold;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.empty{text-align:center;padding:36px 20px;color:var(--muted)}
+.empty span{font-size:46px;display:block;margin-bottom:8px}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--success);color:#000;padding:12px 24px;border-radius:30px;font-weight:bold;z-index:99;display:none;white-space:nowrap;max-width:90%}
+.section-title{display:flex;justify-content:space-between;align-items:center;margin:20px 0 12px}
+.section-title h3{font-size:16px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:var(--card);border-radius:20px;padding:24px;width:100%;max-width:420px}
+footer{text-align:center;padding:20px;font-size:12px;color:var(--muted);letter-spacing:.5px}
+footer b{color:var(--text)}
+@media(min-width:768px){ .course-list{display:grid;grid-template-columns:1fr 1fr;gap:12px} .course-list .course{margin-bottom:0} #app{max-width:900px} }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+<div id="watermark" style="display:none"></div>
+
+<!-- ============ الدخول ============ -->
+<div id="authScreen">
+  <div class="auth-box">
+    <div class="logo" id="logoBtn">🎓</div>
+    <h1>منصتي التعليمية</h1>
+    <p class="muted" style="text-align:center;margin-bottom:20px">سجّل دخولك بحساب جوجل للمتابعة</p>
+    <button class="btn google" onclick="googleLogin()">
+      <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A11 11 0 0 0 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+      الدخول بحساب جوجل
+    </button>
+  </div>
+</div>
+
+<!-- نافذة الاسم الثلاثي -->
+<div class="modal-overlay" id="nameModal" style="display:none">
+  <div class="modal">
+    <h3 style="margin-bottom:6px">أهلاً بك! 👋</h3>
+    <p class="muted" style="margin-bottom:14px">اكتب اسمك الثلاثي (مثال: أحمد محمد علي)</p>
+    <input id="fullNameInput" placeholder="الاسم بالكامل (3 أسماء على الأقل)">
+    <button class="btn" onclick="saveStudentName()">متابعة</button>
+  </div>
+</div>
+
+<!-- ============ التطبيق ============ -->
+<div id="app">
+  <header>
+    <h2 id="pageTitle"></h2>
+    <div class="header-actions">
+      <button class="icon-btn" id="devBtn" style="display:none" onclick="showPage('dev')">🛠️</button>
+      <button class="icon-btn" onclick="toggleTheme()">🌙</button>
+      <button class="icon-btn" onclick="logout()">🚪</button>
+    </div>
+  </header>
+  <main id="mainContent"></main>
+  <footer>© All Rights Reserved — <b>Anwar Wageeh</b></footer>
+  <nav id="mainNav"></nav>
+</div>
+
+<!-- صندوق إرسال الشات -->
+<div class="chat-box" id="chatBox" style="display:none">
+  <input id="chatInput" placeholder="اكتب رسالتك..." onkeydown="if(event.key==='Enter')sendMsg()">
+  <button class="btn" style="width:auto;padding:10px 20px" onclick="sendMsg()">إرسال</button>
+</div>
+
+<script>
+/* ================= إعدادات حسابك ================= */
+const DEV_EMAIL = 'anwrwjyh759@gmail.com';
+const DEV_PIN = '250746';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBJyuxhwlLnlq4kb7t_3bnKyHPClOfDYks",
+  authDomain: "jin-5-44a66.firebaseapp.com",
+  databaseURL: "https://jin-5-44a66-default-rtdb.firebaseio.com",
+  projectId: "jin-5-44a66",
+  storageBucket: "jin-5-44a66.firebasestorage.app",
+  messagingSenderId: "437463842510",
+  appId: "1:437463842510:web:428ebd6b656dfd40911a9f"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth(), db = firebase.database(), storage = firebase.storage();
+
+/* ================= حماية من التسجيل والنسخ ================= */
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('copy', e => { e.preventDefault(); toast('🔒 النسخ غير مسموح'); });
+document.addEventListener('visibilitychange', () => {
+  document.body.classList.toggle('protected-blur', document.hidden);
+});
+
+/* ================= الحالة ================= */
+let currentUser = null;
+let teachers = {};
+let page = 'home';
+let activeListeners = [];
+let quizState = null, chatId = null, liveId = null;
+
+const san = email => (email||'').replace(/\./g, ',').replace(/[#$\[\]]/g,'');
+const isDev = () => localStorage.getItem('dev_mode') === '1';
+const devView = () => localStorage.getItem('dev_view');
+const isTeacher = () => (teachers[san(currentUser?.email)] || currentUser?.email === DEV_EMAIL) ? true : (devView()==='teacher' && isDev());
+const myName = () => currentUser?.displayName || 'مستخدم';
+const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display='block';
+  clearTimeout(t._to); t._to = setTimeout(()=>t.style.display='none', 2500);
+}
+function emptyBox(icon,msg){ return `<div class="empty"><span>${icon}</span>${msg}</div>`; }
+
+function toggleTheme(){
+  document.body.classList.toggle('light');
+  localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark');
+}
+if(localStorage.getItem('theme')==='light') document.body.classList.add('light');
+
+/* ================= المصادقة ================= */
+function googleLogin(){
+  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>{
+    if(e.code==='auth/popup-blocked' || e.code==='auth/cancelled-popup-request'){
+      auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
+    } else toast('⚠️ ' + e.message);
+  });
+}
+function logout(){
+  activeListeners.forEach(l=>l.off()); activeListeners=[];
+  localStorage.removeItem('dev_view');
+  auth.signOut(); location.reload();
+}
+
+auth.onAuthStateChanged(async user=>{
+  if(!user){ document.getElementById('authScreen').style.display='flex'; return; }
+  currentUser = user;
+
+  const tSnap = await db.ref('teachers').once('value');
+  teachers = tSnap.val() || {};
+
+  const uSnap = await db.ref('users/'+user.uid).once('value');
+  if(!uSnap.exists() && !teachers[san(user.email)] && user.email !== DEV_EMAIL){
+    document.getElementById('nameModal').style.display='flex';
+    return;
+  }
+  if(!uSnap.exists()){
+    await db.ref('users/'+user.uid).set({ name: myName(), email: user.email, createdAt: firebase.database.ServerValue.TIMESTAMP });
+  }
+  enterApp();
+});
+
+async function saveStudentName(){
+  const name = document.getElementById('fullNameInput').value.trim().replace(/\s+/g,' ');
+  const parts = name.split(' ').filter(Boolean);
+  if(parts.length < 3){ toast('⚠️ اكتب اسمك الثلاثي (3 أسماء على الأقل)'); return; }
+  await db.ref('users/'+currentUser.uid).set({ name, email: currentUser.email, createdAt: firebase.database.ServerValue.TIMESTAMP });
+  document.getElementById('nameModal').style.display='none';
+  enterApp();
+}
+
+/* وضع المطور */
+(function(){
+  const logo = document.getElementById('logoBtn');
+  let timer;
+  logo.addEventListener('touchstart', ()=> timer = setTimeout(devPrompt, 1200));
+  logo.addEventListener('mousedown', ()=> timer = setTimeout(devPrompt, 1200));
+  ['touchend','mouseup','mouseleave'].forEach(ev=>logo.addEventListener(ev, ()=>clearTimeout(timer)));
+})();
+function devPrompt(){
+  if(isDev()) return;
+  const pin = prompt('🔐 كود المطور:');
+  if(pin === DEV_PIN){
+    localStorage.setItem('dev_mode','1');
+    toast('🛠️ وضع المطور مفعّل');
+    if(currentUser) enterApp();
+  } else if(pin !== null){ toast('❌ كود خطأ'); }
+}
+
+function enterApp(){
+  document.getElementById('authScreen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('devBtn').style.display = isDev() ? 'block' : 'none';
+  const wm = document.getElementById('watermark');
+  wm.style.display='block';
+  wm.textContent = (currentUser.email + ' • ').repeat(60);
+  buildNav();
+  showPage('home');
+}
+
+/* ================= التنقل والص صفحات ================= */
+const titles = { home:'الرئيسية', courses:'الكورسات', manage:'إدارة المحتوى', posts:'المنشورات', quiz:'الاختبارات', chat:'الرسائل', live:'البث المباشر', profile:'حسابي', dev:'لوحة المطور' };
+function showPage(p){
+  page = p;
+  document.getElementById('pageTitle').textContent = titles[p] || 'المنصة';
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active', b.dataset.page===p));
+  document.getElementById('chatBox').style.display='none';
+  activeListeners.forEach(l=>l.off()); activeListeners=[];
+  render();
+}
+function buildNav(){
+  const items = isTeacher()
+    ? [['home','🏠','الرئيسية'],['manage','📚','إدارتي'],['posts','📰','منشورات'],['chat','💬','الرسائل'],['profile','👤','حسابي']]
+    : [['home','🏠','الرئيسية'],['courses','📚','الكورسات'],['quiz','📝','اختبر نفسك'],['posts','📰','منشورات'],['chat','💬','الرسائل'],['profile','👤','حسابي']];
+  if(isDev()) items.push(['dev','🛠️','المطور']);
+  document.getElementById('mainNav').innerHTML = items.map(([p,ic,lb])=>
+    `<button data-page="${p}" onclick="showPage('${p}')"><span>${ic}</span>${lb}</button>`).join('');
+}
+function listen(ref, cb){
+  ref.on('value', cb);
+  activeListeners.push(ref);
+}
+
+async function render(){
+  const c = document.getElementById('mainContent');
+  if(page==='home') return renderHome(c);
+  if(page==='courses' || page==='manage') return isTeacher() ? renderManage(c) : renderCourses(c);
+  if(page==='quiz') return renderQuizHome(c);
+  if(page==='posts') return renderPosts(c);
+  if(page==='chat') return renderChatList(c);
+  if(page==='profile') return renderProfile(c);
+  if(page==='dev') return renderDev(c);
+}
+
+async function renderHome(c){
+  const coursesSnap = await db.ref('courses').once('value');
+  const courses = Object.entries(coursesSnap.val()||{}).map(([id,v])=>({id,...v}));
+  const myCourses = isTeacher() ? courses.filter(x=>x.owner===currentUser.uid) : courses;
+  const progSnap = await db.ref('progress/'+currentUser.uid).once('value');
+  const done = Object.keys(progSnap.val()||{}).length;
+  const totalLessons = courses.reduce((s,x)=>s+Object.keys(x.lessons||{}).length,0);
+
+  c.innerHTML = `
+    <div class="card" style="background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff">
+      <h3 style="color:#fff">${isTeacher()?'👨‍🏫 أستاذ ':'🎒 '} ${esc(myName())}</h3>
+      <p style="opacity:.9;font-size:14px">${isTeacher()?'منصتك جاهزة لإدارة المحتوى والدروس':'استمر يا بطل، كل خطوة تقربك لهدفك 🔥'}</p>
+      ${!isTeacher()?`<div class="progress-bar" style="background:rgba(255,255,255,.25);margin-top:12px"><div class="progress-fill" style="width:${totalLessons?Math.round(done/totalLessons*100):0}%"></div></div>
+      <p style="margin-top:6px;font-size:13px;opacity:.9">${done}/${totalLessons} درس مكتمل</p>`:''}
+    </div>
+    ${isTeacher()?`
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <button class="btn" onclick="showPage('manage')">إدارة المحتوى</button>
+        <button class="btn" style="background:var(--accent);color:#000" onclick="showPage('posts')">نشر منشور</button>
+      </div>
+    `:''}
+    <div class="section-title"><h3>الكورسات المتاحة</h3></div>
+    <div class="course-list">
+      ${myCourses.length ? myCourses.map(x=>`
+        <div class="course" onclick="toast('اختر كورس من قائمة الكورسات')">
+          <div class="emoji">${x.emoji||'📚'}</div>
+          <div class="course-info">
+            <h3>${esc(x.title)}</h3>
+            <p class="muted">${Object.keys(x.lessons||{}).length} دروس</p>
+          </div>
+        </div>
+      `).join('') : emptyBox('📭','لا توجد كورسات مضافة بعد')}
+    </div>
+  `;
+}
+
+async function renderCourses(c){
+  const snap = await db.ref('courses').once('value');
+  const courses = Object.entries(snap.val()||{}).map(([id,v])=>({id,...v}));
+  c.innerHTML = `<div class="section-title"><h3>جميع الكورسات</h3></div>` +
+    (courses.length ? courses.map(x=>`
+      <div class="course" onclick="alert('${esc(x.title)}')">
+        <div class="emoji">${x.emoji||'📚'}</div>
+        <div class="course-info">
+          <h3>${esc(x.title)}</h3>
+          <p class="muted">${esc(x.desc||'')}</p>
+        </div>
+      </div>
+    `).join('') : emptyBox('📚','لا توجد كورسات حالياً'));
+}
+
+async function renderManage(c){
+  c.innerHTML = `
+    <div class="card">
+      <h3>إضافة كورس جديد</h3>
+      <input id="newCourseTitle" placeholder="عنوان الكورس">
+      <input id="newCourseEmoji" placeholder="أيقونة أو إيموجي (مثل 📐)">
+      <textarea id="newCourseDesc" placeholder="وصف قصير للكورس"></textarea>
+      <button class="btn" onclick="addCourse()">إضافة الكورس</button>
+    </div>
+  `;
+}
+
+async function addCourse(){
+  const title = document.getElementById('newCourseTitle').value.trim();
+  const emoji = document.getElementById('newCourseEmoji').value.trim() || '📚';
+  const desc = document.getElementById('newCourseDesc').value.trim();
+  if(!title) return toast('⚠️ اكتب عنوان الكورس');
+  await db.ref('courses').push({ title, emoji, desc, owner: currentUser.uid });
+  toast('✅ تم إضافة الكورس بنجاح');
+  showPage('manage');
+}
+
+async function renderQuizHome(c){
+  c.innerHTML = emptyBox('📝','لا توجد اختبارات متاحة حالياً');
+}
+
+async function renderPosts(c){
+  c.innerHTML = `
+    ${isTeacher()?`
+      <div class="card">
+        <h3>نشر منشور جديد</h3>
+        <textarea id="postContent" placeholder="اكتب شيئاً لطلابك..."></textarea>
+        <button class="btn small" onclick="createPost()">نشر</button>
+      </div>
+    `:''}
+    <div id="postsList"></div>
+  `;
+  listen(db.ref('posts'), snap=>{
+    const list = document.getElementById('postsList');
+    if(!list) return;
+    const posts = Object.entries(snap.val()||{}).reverse();
+    list.innerHTML = posts.length ? posts.map(([id,p])=>`
+      <div class="post">
+        <div class="post-head">
+          <div class="avatar">👨‍🏫</div>
+          <div><b>${esc(p.authorName)}</b><div class="muted">${new Date(p.time).toLocaleDateString('ar')}</div></div>
+        </div>
+        <p>${esc(p.content)}</p>
+      </div>
+    `).join('') : emptyBox('📰','لا توجد منشورات');
+  });
+}
+
+async function createPost(){
+  const content = document.getElementById('postContent').value.trim();
+  if(!content) return toast('⚠️ اكتب محتوى المنشور');
+  await db.ref('posts').push({ content, authorName: myName(), time: firebase.database.ServerValue.TIMESTAMP });
+  document.getElementById('postContent').value = '';
+  toast('✅ تم النشر');
+}
+
+async function renderChatList(c){
+  c.innerHTML = emptyBox('💬','لا توجد محادثات نشطة');
+}
+
+async function renderProfile(c){
+  c.innerHTML = `
+    <div class="card" style="text-align:center">
+      <div class="avatar" style="width:80px;height:80px;margin:0 auto 12px;font-size:32px">👤</div>
+      <h3>${esc(myName())}</h3>
+      <p class="muted">${esc(currentUser.email)}</p>
+      <div style="margin-top:14px">
+        <span class="chip ${isTeacher()?'teacher':'student'}">${isTeacher()?'معلم / أستاذ':'طالب'}</span>
+      </div>
+    </div>
+  `;
+}
+
+async function renderDev(c){
+  c.innerHTML = `
+    <div class="card">
+      <h3>🛠️ لوحة تحكم المطور</h3>
+      <p class="muted" style="margin-bottom:14px">أنت مسجل كمدير رئيسي للمنصة.</p>
+      <button class="btn secondary" onclick="localStorage.removeItem('dev_mode');location.reload()">خروج من وضع المطور</button>
+    </div>
+  `;
+}
+</script>
+</body>
+</html>
