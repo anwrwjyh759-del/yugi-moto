@@ -59,7 +59,7 @@ body.light .course .emoji{background:#f1f3f8}
 .avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
 .post-img{width:100%;border-radius:12px;margin-top:10px;max-height:300px;object-fit:cover}
 
-/* الشات المطور */
+/* الشات */
 .chat-msg{max-width:80%;padding:10px 14px;border-radius:16px;margin-bottom:8px;font-size:14px;clear:both;word-break:break-word}
 .chat-msg.me{background:var(--primary);color:#fff;margin-right:auto;border-bottom-left-radius:4px}
 .chat-msg.them{background:var(--card);border:1px solid var(--muted);margin-left:auto;border-bottom-right-radius:4px}
@@ -101,7 +101,7 @@ footer b{color:var(--text)}
 <!-- شاشة الدخول -->
 <div id="authScreen">
   <div class="auth-box">
-    <div class="logo" id="logoBtn">🎓</div>
+    <div class="logo">🎓</div>
     <h1>منصتي التعليمية</h1>
     <p class="muted" style="text-align:center;margin-bottom:20px">سجّل دخولك بحساب جوجل للمتابعة</p>
     <button class="btn google" onclick="googleLogin()">
@@ -128,7 +128,7 @@ footer b{color:var(--text)}
     <div class="header-actions">
       <button class="icon-btn" id="devBtn" style="display:none" onclick="showPage('dev')">🛠️</button>
       <button class="icon-btn" onclick="toggleTheme()">🌙</button>
-      <button class="icon-btn" onclick="logout()">🚪</button>
+      <!-- تم حذف زر الخروج لمنع لعب الطلاب -->
     </div>
   </header>
   <main id="mainContent"></main>
@@ -171,6 +171,8 @@ let teachers = {};
 let page = 'home';
 let activeListeners = [];
 let activeChatUser = null;
+let welcomeClickCount = 0; // عداد الضغطات المباشرة لفتح وضع المطور
+let welcomeClickTimer = null;
 
 const san = email => (email||'').replace(/\./g, ',').replace(/[#$\[\]]/g,'');
 const isDev = () => localStorage.getItem('dev_mode') === '1';
@@ -206,11 +208,6 @@ function googleLogin(){
     } else toast('⚠️ ' + e.message);
   });
 }
-function logout(){
-  activeListeners.forEach(l=>l.off()); activeListeners=[];
-  localStorage.removeItem('dev_view');
-  auth.signOut(); location.reload();
-}
 
 auth.onAuthStateChanged(async user=>{
   if(!user){ document.getElementById('authScreen').style.display='flex'; return; }
@@ -239,22 +236,32 @@ async function saveStudentName(){
   enterApp();
 }
 
-/* زر المطور الخفي */
-(function(){
-  const logo = document.getElementById('logoBtn');
-  let timer;
-  logo.addEventListener('touchstart', ()=> timer = setTimeout(devPrompt, 1200));
-  logo.addEventListener('mousedown', ()=> timer = setTimeout(devPrompt, 1200));
-  ['touchend','mouseup','mouseleave'].forEach(ev=>logo.addEventListener(ev, ()=>clearTimeout(timer)));
-})();
+/* حركة 10 ضغطات متتالية لفتح لوحة المطور */
+function handleWelcomeClick(){
+  welcomeClickCount++;
+  clearTimeout(welcomeClickTimer);
+  welcomeClickTimer = setTimeout(() => { welcomeClickCount = 0; }, 3000);
+
+  if(welcomeClickCount >= 10){
+    welcomeClickCount = 0;
+    devPrompt();
+  }
+}
+
 function devPrompt(){
-  if(isDev()) return;
+  if(isDev()){
+    showPage('dev');
+    return;
+  }
   const pin = prompt('🔐 كود المطور:');
   if(pin === DEV_PIN){
     localStorage.setItem('dev_mode','1');
-    toast('🛠️ وضع المطور مفعّل');
-    if(currentUser) enterApp();
-  } else if(pin !== null){ toast('❌ كود خطأ'); }
+    toast('🛠️ تم تفعيل وضع المطور');
+    document.getElementById('devBtn').style.display = 'block';
+    showPage('dev');
+  } else if(pin !== null){ 
+    toast('❌ كود خطأ'); 
+  }
 }
 
 function enterApp(){
@@ -331,7 +338,7 @@ async function renderHome(c){
 
   c.innerHTML = `
     <div id="liveBoxContainer"></div>
-    <div class="card" style="background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff">
+    <div class="card" style="background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;cursor:pointer" onclick="handleWelcomeClick()">
       <h3 style="color:#fff">${isTeacher()?'👨‍🏫 أستاذ ':'🎒 '} ${esc(myName())}</h3>
       <p style="opacity:.9;font-size:14px">${isTeacher()?'منصتك جاهزة لإدارة المحتوى والدروس والبث':'استمر يا بطل، كل خطوة تقربك لهدفك 🔥'}</p>
     </div>
@@ -567,20 +574,19 @@ async function renderProfile(c){
   `;
 }
 
-/* ================= لوحة المطور المحدثة لإضافة المدرسين بسهولة ================= */
 async function renderDev(c){
   c.innerHTML = `
     <div class="card">
       <h3>🛠️ لوحة تحكم المطور</h3>
       <p class="muted" style="margin-bottom:14px">أنت مسجل كمدير رئيسي للمنصة.</p>
-      
+
       <div style="background:#00000022;padding:14px;border-radius:12px;margin-bottom:14px">
         <h4 style="margin-bottom:8px">➕ إضافة مدرس جديد للبيع</h4>
         <input id="sellerTeacherEmail" placeholder="اكتب إيميل المدرس (مثل teacher@gmail.com)">
         <button class="btn" onclick="addNewTeacherByDev()">حفظ وتفعيل كمعلم</button>
       </div>
 
-      <button class="btn secondary" onclick="localStorage.removeItem('dev_mode');location.reload()">خروج من وضع المطور</button>
+      <button class="btn secondary" onclick="localStorage.removeItem('dev_mode');location.reload()">إغلاق وضع المطور</button>
     </div>
   `;
 }
