@@ -179,7 +179,6 @@ const isTeacher = () => (teachers[san(currentUser?.email)] || currentUser?.email
 const myName = () => currentUser?.displayName || 'مستخدم';
 const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-/* تحويل النص ذو الروابط إلى عناصر قابلة للنقر */
 function formatMessage(text) {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   return esc(text).replace(urlRegex, function(url) {
@@ -304,12 +303,10 @@ async function render(){
   if(page==='dev') return renderDev(c);
 }
 
-/* ================= الصفحة الرئيسية مع دعم البث المباشر ================= */
 async function renderHome(c){
   const coursesSnap = await db.ref('courses').once('value');
   const courses = Object.entries(coursesSnap.val()||{}).map(([id,v])=>({id,...v}));
 
-  // استماع للبث المباشر
   listen(db.ref('live'), snap => {
     const liveData = snap.val();
     const liveBox = document.getElementById('liveBoxContainer');
@@ -425,7 +422,6 @@ async function renderQuizHome(c){
   c.innerHTML = emptyBox('📝','لا توجد اختبارات متاحة حالياً');
 }
 
-/* ================= المنشورات ودعم الصور والروابط ================= */
 async function renderPosts(c){
   c.innerHTML = `
     ${isTeacher()?`
@@ -465,7 +461,6 @@ async function createPost(){
   toast('✅ تم النشر');
 }
 
-/* ================= نظام الشات والرسائل والمرفقات ================= */
 async function renderChat(c){
   if(!isTeacher()){
     c.innerHTML = `
@@ -572,14 +567,38 @@ async function renderProfile(c){
   `;
 }
 
+/* ================= لوحة المطور المحدثة لإضافة المدرسين بسهولة ================= */
 async function renderDev(c){
   c.innerHTML = `
     <div class="card">
       <h3>🛠️ لوحة تحكم المطور</h3>
       <p class="muted" style="margin-bottom:14px">أنت مسجل كمدير رئيسي للمنصة.</p>
+      
+      <div style="background:#00000022;padding:14px;border-radius:12px;margin-bottom:14px">
+        <h4 style="margin-bottom:8px">➕ إضافة مدرس جديد للبيع</h4>
+        <input id="sellerTeacherEmail" placeholder="اكتب إيميل المدرس (مثل teacher@gmail.com)">
+        <button class="btn" onclick="addNewTeacherByDev()">حفظ وتفعيل كمعلم</button>
+      </div>
+
       <button class="btn secondary" onclick="localStorage.removeItem('dev_mode');location.reload()">خروج من وضع المطور</button>
     </div>
   `;
+}
+
+async function addNewTeacherByDev(){
+  const emailInput = document.getElementById('sellerTeacherEmail');
+  const email = emailInput.value.trim().toLowerCase();
+  if(!email || !email.includes('@')) return toast('⚠️ اكتب بريد إلكتروني صحيح');
+
+  const cleanEmail = san(email);
+  await db.ref('teachers/' + cleanEmail).set({
+    name: 'مدرس معتمد',
+    email: email,
+    addedAt: firebase.database.ServerValue.TIMESTAMP
+  });
+
+  toast('✅ تم تفعيل المدرس بنجاح!');
+  emailInput.value = '';
 }
 </script>
 </body>
